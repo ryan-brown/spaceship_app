@@ -1,0 +1,16 @@
+extends layout
+
+block content
+  h1 Login
+  
+  p #{message}
+  
+  form(method="POST", action="/login")
+    p Username:
+      input#username(type="text", name="username")
+    p Password:
+      input#password(type="password", name="password")
+    p
+      button(type="submit") Login
+  
+  a(href="/new") Create Account

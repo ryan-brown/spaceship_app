@@ -1,0 +1,24 @@
+{
+  "name": "spaceship_app",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "nodemon ./bin/www"
+  },
+  "dependencies": {
+    "express": "~4.2.0",
+    "mongoose": "*",
+    "connect-mongo": "*",
+    "static-favicon": "~1.0.0",
+    "morgan": "~1.0.0",
+    "cookie-parser": "~1.0.1",
+    "express-session": "*",
+    "body-parser": "~1.0.0",
+    "debug": "~0.7.4",
+    "jade": "~1.3.0",
+    "nodemon": "*",
+    "socket.io": "*",
+    "requirejs": "*"
+  }
+}
+
