@@ -1,0 +1,14 @@
+Spaceship App
+
+Requirements:
+NodeJS
+MongoDB
+
+Installation:
+git clone https://github.com/ryan-brown/spaceship_app.git
+'npm install' in root directory 
+
+Run:
+'npm start' in root directory
+
+This project uses Nodemon so whenever a change is made to a file that affects the app, it will restart automatically.
