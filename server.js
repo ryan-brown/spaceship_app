@@ -1,4 +1,4 @@
-var http = require('http');
+var http = require('http'),
     fs = require('fs'),
     io = require('socket.io'),
     requirejs = require('requirejs'),

@@ -104,7 +104,7 @@ app.get('/logout', function(req, res) {
 });
 
 app.get('/play', restrict, function(req, res) {
-  res.render('play', {username: req.session.username});
+  res.render('play');
 });
 
 app.get('/account', restrict, function(req, res) {
