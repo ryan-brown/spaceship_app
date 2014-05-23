@@ -5,8 +5,7 @@ var express = require('express'),
     session = require('cookie-session'),
     bodyParser = require('body-parser'),
     mongoose = require('mongoose'),
-    app = express(),
-    mongoDB = "mongodb://localhost";
+    app = express();
 
 // view engine setup
 app.set('views', __dirname + '/views');
@@ -29,8 +28,7 @@ app.use(function(req, res, next) {
   next();
 });
 
-mongoose.connect(mongoDB+"/users");
-
+mongoose.connect('mongodb://localhost/users');
 var UserSchema = new mongoose.Schema({
   username: String,
   password: String,
@@ -177,6 +175,5 @@ app.use(function(err, req, res, next) {
         error: {}
     });
 });
-
 
 module.exports = app;

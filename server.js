@@ -17,7 +17,6 @@ var server = http.createServer().listen(8765);
 var socket = io.listen(server);
 
 mongoose.connect("mongodb://localhost/users");
-
 var UserSchema = new mongoose.Schema({
   username: String,
   password: String,
@@ -54,8 +53,8 @@ var clientCallback = function(client) {
 
   client.on('authenticate', function(auth) {
     var data = auth.split('~');
-    var encrypt = keygrip(['kjh2jm3249nb8dc7db0x3ne2n203x']).sign('textr-session='+data[0]);
-    if (encrypt == data[1]) {
+    var hash = keygrip(['kjh2jm3249nb8dc7db0x3ne2n203x']).sign('textr-session='+data[0]);
+    if (hash == data[1]) {
       var b = new Buffer(data[0], 'base64');
       var data = JSON.parse(b.toString());
       client.username = data.username;
