@@ -1,4 +1,8 @@
 extends layout
 
 block content
-  | My account. Under construction...
+  h1 My Account
+  h3 Username: #{user.username}
+  h3 Email: #{user.email}
+  h3 Wins: #{user.wins}
+  h3 Losses: #{user.losses}

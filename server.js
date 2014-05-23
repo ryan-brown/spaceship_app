@@ -26,7 +26,7 @@ var UserSchema = new mongoose.Schema({
   losses: Number
 });
 
-var Users = mongoose.model('Users', UserSchema);
+var User = mongoose.model('User', UserSchema);
 
 var games = [];
 
@@ -54,7 +54,7 @@ var clientCallback = function(client) {
 
   client.on('authenticate', function(auth) {
     var data = auth.split('~');
-    var encrypt = keygrip(['kjh2jm3249nb8dc7db0x3ne2n203']).sign('textr-session='+data[0]);
+    var encrypt = keygrip(['kjh2jm3249nb8dc7db0x3ne2n203x']).sign('textr-session='+data[0]);
     if (encrypt == data[1]) {
       var b = new Buffer(data[0], 'base64');
       var data = JSON.parse(b.toString());
@@ -223,7 +223,7 @@ var Game = function(room) {
         this.loser = this.players[i].username;
         this.winner = this.players[(i+1)%2].username;
         
-        Users.findOne({username: this.winner}, function(err, user) {
+        User.findOne({username: this.winner}, function(err, user) {
           if (err) console.log('find player failed');
           else {
             user.wins += 1;
@@ -234,7 +234,7 @@ var Game = function(room) {
           }
         });
 
-        Users.findOne({username: this.loser}, function(err, user) {
+        User.findOne({username: this.loser}, function(err, user) {
           if (err) console.log('find player failed');
           else {
             user.losses += 1;

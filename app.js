@@ -1,14 +1,12 @@
-var express = require('express');
-var favicon = require('static-favicon');
-var logger = require('morgan');
-var cookieParser = require('cookie-parser');
-var session = require('cookie-session');
-var bodyParser = require('body-parser');
-var mongoose = require('mongoose');
-
-var app = express();
-
-var mongoDB = "mongodb://localhost";
+var express = require('express'),
+    favicon = require('static-favicon'),
+    logger = require('morgan'),
+    cookieParser = require('cookie-parser'),
+    session = require('cookie-session'),
+    bodyParser = require('body-parser'),
+    mongoose = require('mongoose'),
+    app = express(),
+    mongoDB = "mongodb://localhost";
 
 // view engine setup
 app.set('views', __dirname + '/views');
@@ -20,7 +18,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
 app.use(cookieParser());
 app.use(session({
-  secret : 'kjh2jm3249nb8dc7db0x3ne2n203',
+  secret : 'kjh2jm3249nb8dc7db0x3ne2n203x',
   name : 'textr-session',
   httpOnly : false,
   cookie : { maxAge: 7 * 24 * 60 * 60 * 1000 }, // 1 week til expire
@@ -41,7 +39,7 @@ var UserSchema = new mongoose.Schema({
   losses: Number
 });
 
-var Users = mongoose.model('Users', UserSchema);
+var User = mongoose.model('User', UserSchema);
 
 function restrict(req, res, next) {
   if(typeof req.session.username === 'undefined') res.redirect('login');
@@ -57,7 +55,7 @@ app.get('/login', function(req, res) {
 });
 
 app.post('/login', function(req, res) {
-  Users.find({username: req.body.username, password: req.body.password}, function(err, docs) {
+  User.find({username: req.body.username, password: req.body.password}, function(err, docs) {
     if (docs.length > 0) {
       req.session.username = req.body.username;
       res.redirect('/');
@@ -66,26 +64,26 @@ app.post('/login', function(req, res) {
   });
 });
 
-app.get('/new', function(req, res) {
-  res.render('new');
+app.get('/create', function(req, res) {
+  res.render('create');
 });
 
-app.post('/new', function(req, res) {
+app.post('/create', function(req, res) {
   var body = req.body;
   var usernameRegex = /^[a-z0-9]+$/i;
   var passwordRegex = /^[a-z0-9._!@#$%^&*()]+$/i;
 
   if (body.username.length < 3 || body.username.legnth > 16) 
-    res.render('new', {message: 'Username must be between 3 and 16 chacters'});
+    res.render('create', {message: 'Username must be between 3 and 16 chacters'});
   else if (body.password.length < 3 || body.password.length > 16)
-    res.render('new', {message: 'Password must be between 3 and 16 chacters'});
+    res.render('create', {message: 'Password must be between 3 and 16 chacters'});
   else if (!usernameRegex.test(body.username))
-    res.render('new', {message: 'Username must be alphanumeric'});
+    res.render('create', {message: 'Username must be alphanumeric'});
   else if (!passwordRegex.test(body.password))
-    res.render('new', {message: 'Passwords only allow alphanumeric characters and these special characters: . _ ! @ # $ % ^ & * ( )'});
-  else Users.find({username: body.username}, function(err, docs) {
-    if (docs.length > 0) res.render('new', {message: 'Username already exists.'});
-    else  new Users({
+    res.render('create', {message: 'Passwords only allow alphanumeric characters and these special characters: . _ ! @ # $ % ^ & * ( )'});
+  else User.find({username: body.username}, function(err, docs) {
+    if (docs.length > 0) res.render('create', {message: 'Username already exists.'});
+    else  new User({
       username: body.username,
       password: body.password,
       email: body.email,
@@ -108,7 +106,15 @@ app.get('/play', restrict, function(req, res) {
 });
 
 app.get('/account', restrict, function(req, res) {
-  res.render('account');
+  User.findOne({username: req.session.username}, function(err, user) {
+    var data = {};
+    data.username = user.username;
+    data.email = user.email;
+    data.wins = user.wins;
+    data.losses = user.losses;
+
+    res.render('account', {user: data});
+  });
 });
 
 function compare(a,b) {
@@ -124,7 +130,7 @@ function compare(a,b) {
 }
 
 app.get('/leaderboard', function(req, res) {
-  Users.find({}, function(err, docs) {
+  User.find({}, function(err, docs) {
     var data = [];
     for(var i = 0; i < docs.length; i++) {
       var datum = {} 
