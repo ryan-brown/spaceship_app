@@ -4,4 +4,17 @@ html
     title Space Game
     link(rel='stylesheet', href='/stylesheets/style.css')
   body(bgcolor='eeeeee')
+    a(href='/') Home
+    |  - 
+    a(href='/play') Play
+    |  - 
+    a(href='/leaderboard') Leaderboard
+    |  - 
+    - if(username)
+      a(href='/account') My Account
+      |  - 
+      a(href='/logout') Logout
+      p Welcome, #{username}
+    - else
+      a(href='/login') Login
     block content

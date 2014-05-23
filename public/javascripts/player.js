@@ -4,6 +4,8 @@ define(["entity", "bullet"], function(Entity, Bullet) {
                             new Entity({}) : new Entity(json.entity);
     this.playerNum        = (typeof json.playerNum        === 'undefined') ?
                             -1 : json.playerNum;
+    this.username         = (typeof json.username         === 'undefined') ?
+                            '' : json.username;
     this.color            = (typeof json.color            === 'undefined') ?
                             '444444' : json.color;
     this.maxSpeed         = (typeof json.maxSpeed         === 'undefined') ?
@@ -119,21 +121,21 @@ define(["entity", "bullet"], function(Entity, Bullet) {
       ctx.fill();
       if (playerNum == this.playerNum) ctx.stroke();
 
-      // // Fuel
-      // ctx.fillStyle = '#DD0000';
-      // ctx.fillRect(
-      //   this.entity.x-this.entity.width/2,
-      //   this.entity.y-this.entity.height/2-9,
-      //   this.entity.width,
-      //   3
-      // );
-      // ctx.fillStyle = '#0000DD';
-      // ctx.fillRect(
-      //   this.entity.x-this.entity.width/2,
-      //   this.entity.y-this.entity.height/2-9,
-      //   this.entity.width*(this.fuel/100),
-      //   3
-      // );
+      // Fuel
+      ctx.fillStyle = '#DD0000';
+      ctx.fillRect(
+        this.entity.x-this.entity.width/2,
+        this.entity.y-this.entity.height/2-9,
+        this.entity.width,
+        3
+      );
+      ctx.fillStyle = '#0000DD';
+      ctx.fillRect(
+        this.entity.x-this.entity.width/2,
+        this.entity.y-this.entity.height/2-9,
+        this.entity.width*(this.fuel/100),
+        3
+      );
 
       // HP Bar
       ctx.fillStyle = '#DD0000';

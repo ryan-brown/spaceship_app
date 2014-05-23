@@ -1,13 +1,13 @@
 define(["player", "bullet"], function(Player, Bullet) {
   var Game = function() {
-    // Variables
-    var socket, connected, countdownBegin, countdown, canvas, ctx,
+   // Variables
+    var socket, games, inLobby, connected, countdownBegin, countdown, canvas, ctx,
         width, height, interval, tickRate, lastTime, players, bullets,
         playerNum, upPressed, leftPressed, rightPressed, firePressed;
 
     // Functions
-    var init, clearScreen, update, updateObjects, collisions, keepOnMap,
-        drawClients, drawBullets, draw, start;
+    var init, clearScreen, updateGameSelected, update, updateObjects, collisions, keepOnMap,
+        drawClients, drawBullets, draw, drawLobby, start;
 
     init = function() {
       canvas = document.getElementById('canvas');
@@ -19,13 +19,31 @@ define(["player", "bullet"], function(Player, Bullet) {
       height = 800;
       players = [];
       bullets = [];
+      games = [];
+      gameSelected = 0;
+      inLobby = true;
       playerNum;
       tickRate = 10;
 
       upPressed = false;
       leftPressed = false;
       rightPressed = false;
+      downPressed = false;
       firePressed = false;
+
+      joinPressed = false;
+      createPressed = false;
+
+      updateGameSelected = function(dir) {
+        if (dir == 'up') {
+          gameSelected--;
+          if (gameSelected < 0) gameSelected = games.length-1;
+        }
+        else if (dir == 'down') {
+          gameSelected++;
+          if (gameSelected >= games.length) gameSelected = 0;
+        }
+      }
 
       addEventListener('keydown', function (e) {
         switch(e.keyCode) {
@@ -36,10 +54,32 @@ define(["player", "bullet"], function(Player, Bullet) {
               firePressed = true;
             }
             break;
+          case 74:
+            if (inLobby && !joinPressed) {
+              socket.emit('join', games[gameSelected].room);
+              joinPressed = true;
+            }
+            break;
+          case 78:
+            if (inLobby && !createPressed) {
+              socket.emit('create');
+              createPressed = true;
+            }
+            break;
+          case 82:
+            if (inLobby) socket.emit('refreshGames');
+            break;
           case 87:
             if (!upPressed) {
-              socket.emit('up');
+              if (inLobby) updateGameSelected('up');
+              else socket.emit('up');
               upPressed = true;
+            }
+            break;
+          case 83:
+            if (!downPressed) {
+              if (inLobby) updateGameSelected('down');
+              downPressed = true;
             }
             break;
           case 65:
@@ -72,6 +112,10 @@ define(["player", "bullet"], function(Player, Bullet) {
               upPressed = false;
             }
             break;
+          case 83:
+            if (downPressed) {
+              downPressed = false;
+            }
           case 65:
             if (leftPressed) {
               socket.emit('leftStop');
@@ -89,16 +133,45 @@ define(["player", "bullet"], function(Player, Bullet) {
 
       socket = io.connect('162.243.13.107:8765');
 
-      socket.on('connected', function(playerNumUpdate) {
-        playerNum = playerNumUpdate;
+      socket.on('connected', function(e) {
         connected = true;
+        var cookies = document.cookie.split('; ');
+        var dataCookie, authCookie;
+        for (var i = 0; i < cookies.length; i++) {
+          if(cookies[i].indexOf('textr-session=') == 0) {
+            dataCookie = cookies[i].substr(14);
+          }
+          else if (cookies[i].indexOf('textr-session.sig=') == 0) {
+            authCookie = cookies[i].substr(18);
+          }
+
+        }
+        var auth = dataCookie + '~' + authCookie;
+        socket.emit('authenticate', auth);
       });
 
-      socket.on('full', function(data) {
-        alert('Server full, please try again later.');
-        clearInterval(interval);
+      socket.on('games', function(gamesData) {
+        games = gamesData;
+      });
+
+      socket.on('joined', function(playerNumData) {
+        playerNum = playerNumData;
+        inLobby = false;
+        console.log(playerNum);
+      });
+
+      socket.on('roomFull', function(room) {
+        alert('Room '+room+' full, please try again later.');
+        joinPressed = false;
+        createPressed = false;
       });
       
+      socket.on('nogameFound', function(room) {
+        alert('Room '+room+' not found, please try again later.');
+        joinPressed = false;
+        createPressed = false;
+      });
+
       socket.on('beginCountdown', function(countdown) {
         countdownBegin = true;
       });
@@ -136,6 +209,7 @@ define(["player", "bullet"], function(Player, Bullet) {
 
       socket.on('disconnect', function() {
         clearInterval(interval);
+        alert('Disconnected from server');
       });
 
       lastTime = new Date().getTime();
@@ -151,6 +225,11 @@ define(["player", "bullet"], function(Player, Bullet) {
       var newTime = new Date().getTime();
       var delta = newTime-lastTime;
       lastTime = newTime;
+
+      if(inLobby) {
+        drawLobby();
+        return;
+      }
 
       if (!connected || countdown > 0) {
         if (countdownBegin) countdown -= delta;
@@ -216,6 +295,36 @@ define(["player", "bullet"], function(Player, Bullet) {
 
         if(entity.y > height) entity.y -= height;
         else if(entity.y < 0) entity.y += height;
+      }
+    }
+
+    drawLobby = function() {
+      clearScreen();
+      ctx.font = '50px Georgia';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '44BB44';
+      ctx.fillText('Lobby', width/2, 100);
+
+      ctx.font = '20px Georgia';
+      ctx.fillStyle = '223322';
+      ctx.fillText('J to join ~ R to refresh rooms ~ N to create room', width/2, height-100);
+
+      for(var i = 0; i < games.length; i++) {
+        ctx.font = '20px Georgia';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        if (gameSelected == i) ctx.fillStyle = '222288';
+        else ctx.fillStyle = '882222';
+
+        var g = games[i];
+
+        var playersText = '(';
+        playersText += g.players.length + '/2) Players';
+        if (g.players.length > 0) playersText += ': '+g.players[0]
+        if (g.players.length > 1) playersText += ' v '+g.players[1]
+
+        ctx.fillText('Room: ' + games[i].room + ' - ' + playersText +' - Status: ' + games[i].status, 100, 200+i*50);
       }
     }
 

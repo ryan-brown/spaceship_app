@@ -2,10 +2,9 @@ var express = require('express');
 var favicon = require('static-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
-var session = require('express-session');
+var session = require('cookie-session');
 var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
-var MongoStore = require('connect-mongo')(session);
 
 var app = express();
 
@@ -21,27 +20,36 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
 app.use(cookieParser());
 app.use(session({
-  secret : 'secretkeyftw',
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }, // 1 week til expire
-  store : new MongoStore({
-    url : mongoDB+'/sessions'
-  })
+  secret : 'kjh2jm3249nb8dc7db0x3ne2n203',
+  name : 'textr-session',
+  httpOnly : false,
+  cookie : { maxAge: 7 * 24 * 60 * 60 * 1000 }, // 1 week til expire
 }));
 app.use(express.static(__dirname + '/public'));
+app.use(function(req, res, next) {
+  res.locals.username = req.session.username;
+  next();
+});
 
 mongoose.connect(mongoDB+"/users");
 
 var UserSchema = new mongoose.Schema({
   username: String,
   password: String,
-  email: String
+  email: String,
+  wins: Number,
+  losses: Number
 });
 
 var Users = mongoose.model('Users', UserSchema);
 
-app.get('/', function(req, res) {
-  if (typeof req.session.username === 'undefined') res.redirect('login');
-  else res.render('index', {username: req.session.username});
+function restrict(req, res, next) {
+  if(typeof req.session.username === 'undefined') res.redirect('login');
+  else next();
+}
+
+app.get('/', restrict, function(req, res) {
+  res.render('index');
 });
 
 app.get('/login', function(req, res) {
@@ -80,7 +88,9 @@ app.post('/new', function(req, res) {
     else  new Users({
       username: body.username,
       password: body.password,
-      email: body.email
+      email: body.email,
+      wins: 0,
+      losses: 0
     }).save(function(err, docs) {
       if (err) res.json(err);
       res.redirect('login');
@@ -89,13 +99,46 @@ app.post('/new', function(req, res) {
 });
 
 app.get('/logout', function(req, res) {
-  req.session.destroy();
+  req.session = null;
   res.redirect('/login');
 });
 
-app.get('/play', function(req, res) {
-  if (typeof req.session.username === 'undefined') res.redirect('login');
-  else  res.render('play', {username: req.session.username});
+app.get('/play', restrict, function(req, res) {
+  res.render('play', {username: req.session.username});
+});
+
+app.get('/account', restrict, function(req, res) {
+  res.render('account');
+});
+
+function compare(a,b) {
+  if (a.wins < b.wins)
+    return 1;
+  if (a.wins > b.wins)
+    return -1;
+  if (a.wins == b.wins && a.losses > b.losses)
+    return 1;
+  if (a.wins == b.wins && a.losses < b.losses)
+    return -1;
+  return a.username.localeCompare(b.username);
+}
+
+app.get('/leaderboard', function(req, res) {
+  Users.find({}, function(err, docs) {
+    var data = [];
+    for(var i = 0; i < docs.length; i++) {
+      var datum = {} 
+      datum.username = docs[i].username;
+      datum.wins = docs[i].wins;
+      datum.losses = docs[i].losses;
+
+      data.push(datum);
+    }
+
+    data.sort(compare); 
+    if (err) res.render('leaderboard');
+    else res.render('leaderboard', {players: data});
+  });
 });
 
 /// catch 404 and forward to error handler
