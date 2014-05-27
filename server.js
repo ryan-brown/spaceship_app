@@ -33,6 +33,11 @@ var nextRoomID = 3;
 
 var getGamesData = function() {
   var gamesData = [];
+  if (games.length == 0) {
+    var roomName = nextRoomID++;
+    roomName = roomName.toString();
+    games.push(new Game(roomName));
+  }
   for(var i = 0; i < games.length; i++) {
     var game = games[i];
     var gameData = {};
@@ -53,7 +58,7 @@ var clientCallback = function(client) {
 
   client.on('authenticate', function(auth) {
     var data = auth.split('~');
-    var hash = keygrip(['kjh2jm3249nb8dc7db0x3ne2n203x']).sign('textr-session='+data[0]);
+    var hash = keygrip(['kjh2jm3249nb8dc7db0x3ne2n203y']).sign('textr-session='+data[0]);
     if (hash == data[1]) {
       var b = new Buffer(data[0], 'base64');
       var data = JSON.parse(b.toString());
@@ -165,7 +170,7 @@ var Game = function(room) {
   this.startTime = 10000;
   this.beginCountdown = false;
   this.width = 800;
-  this.widht = 800;
+  this.height = 800;
   this.lastTimeTick;
   this.lastUpdateTick;
 

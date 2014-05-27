@@ -308,7 +308,7 @@ define(["player", "bullet"], function(Player, Bullet) {
 
       ctx.font = '20px Georgia';
       ctx.fillStyle = '223322';
-      ctx.fillText('J to join ~ R to refresh rooms ~ N to create room', width/2, height-100);
+      ctx.fillText('W(up) and D(down) to select room ~ J to join ~ R to refresh rooms ~ N to create room', width/2, height-100);
 
       for(var i = 0; i < games.length; i++) {
         ctx.font = '20px Georgia';

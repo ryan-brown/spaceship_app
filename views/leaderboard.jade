@@ -6,15 +6,20 @@ block content
     thead
       tr
         td(align='center')
+        td(align='center')
           b User
         td(align='center') 
           b Wins
         td(align='center') 
           b Losses
+        td(align='center')
+          b Ratio
     tbody
       each player, i in players
         tr
+          td(align='center')= i+1
           td(align='center')= player.username
           td(align='center')= player.wins
           td(align='center')= player.losses
+          td(align='center')= ''+(((player.wins+player.losses == 0) ? 0 : (100*player.wins)/(player.wins+player.losses)).toFixed(2))+'%'
 

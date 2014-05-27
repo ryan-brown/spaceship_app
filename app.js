@@ -17,7 +17,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
 app.use(cookieParser());
 app.use(session({
-  secret : 'kjh2jm3249nb8dc7db0x3ne2n203x',
+  secret : 'kjh2jm3249nb8dc7db0x3ne2n203y',
   name : 'textr-session',
   httpOnly : false,
   cookie : { maxAge: 7 * 24 * 60 * 60 * 1000 }, // 1 week til expire
@@ -115,15 +115,22 @@ app.get('/account', restrict, function(req, res) {
   });
 });
 
+function rankscore(wins, losses) {
+  var totalGames = wins+losses;
+  var ratio = (totalGames == 0) ? 0 : wins/(totalGames);
+
+  return ratio*(1-Math.exp(-wins/8));
+}
+
 function compare(a,b) {
-  if (a.wins < b.wins)
+  var aScore = rankscore(a.wins, a.losses);
+  var bScore = rankscore(b.wins, b.losses);
+
+  if (aScore < bScore)
     return 1;
-  if (a.wins > b.wins)
+  if (aScore > bScore)
     return -1;
-  if (a.wins == b.wins && a.losses > b.losses)
-    return 1;
-  if (a.wins == b.wins && a.losses < b.losses)
-    return -1;
+  
   return a.username.localeCompare(b.username);
 }
 
