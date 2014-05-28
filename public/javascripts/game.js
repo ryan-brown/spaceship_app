@@ -1,18 +1,20 @@
 define(["player", "bullet"], function(Player, Bullet) {
   var Game = function() {
    // Variables
-    var socket, games, inLobby, connected, countdownBegin, countdown, canvas, ctx,
-        width, height, interval, tickRate, lastTime, players, bullets,
+    var socket, games, inLobby, gameID, connected, inProgress, countdownBegin, countdown, canvas, ctx,
+        width, height, gameOver, interval, tickRate, lastTime, players, bullets,
         playerNum, upPressed, leftPressed, rightPressed, firePressed;
 
     // Functions
-    var init, clearScreen, updateGameSelected, update, updateObjects, collisions, keepOnMap,
+    var init, rejoinLobby, clearScreen, updateGameSelected, update, updateObjects, collisions, keepOnMap,
         drawClients, drawBullets, draw, drawLobby, start;
 
     init = function() {
       canvas = document.getElementById('canvas');
       ctx = canvas.getContext('2d');
       connected = false;
+      inProgress = false;
+      gameOver = false;
       countdownBegin = false;
       countdown = 10000;
       width = 800;
@@ -44,6 +46,35 @@ define(["player", "bullet"], function(Player, Bullet) {
           if (gameSelected >= games.length) gameSelected = 0;
         }
       }
+    
+      rejoinLobby = function() {
+        countdownBegin = false;
+        countdown = 10000;
+        players = [];
+        bullets = [];
+        games = [];
+        gameSelected = 0;
+        inLobby = true;
+        gameOver = false;
+
+        upPressed = false;
+        leftPressed = false;
+        rightPressed = false;
+        downPressed = false;
+        firePressed = false;
+
+        joinPressed = false;
+        createPressed = false;
+        
+        socket.emit('refreshGames');
+      }
+
+    clearScreen = function() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#888888';
+      ctx.fillRect(0, 0, width, height);
+    }
+
 
       addEventListener('keydown', function (e) {
         switch(e.keyCode) {
@@ -68,6 +99,12 @@ define(["player", "bullet"], function(Player, Bullet) {
             break;
           case 82:
             if (inLobby) socket.emit('refreshGames');
+            break;
+          case 76:
+            if (!inLobby && !inProgress) {
+              rejoinLobby();
+              socket.emit('joinLobby', gameID);
+            }
             break;
           case 87:
             if (!upPressed) {
@@ -133,7 +170,7 @@ define(["player", "bullet"], function(Player, Bullet) {
 
       socket = io.connect('162.243.13.107:8765');
 
-      socket.on('connected', function(e) {
+      socket.on('connected', function() {
         connected = true;
         var cookies = document.cookie.split('; ');
         var dataCookie, authCookie;
@@ -154,10 +191,10 @@ define(["player", "bullet"], function(Player, Bullet) {
         games = gamesData;
       });
 
-      socket.on('joined', function(playerNumData) {
-        playerNum = playerNumData;
+      socket.on('joined', function(data) {
+        playerNum = data.playerNumData;
         inLobby = false;
-        console.log(playerNum);
+        gameID = data.gameID;
       });
 
       socket.on('roomFull', function(room) {
@@ -174,6 +211,7 @@ define(["player", "bullet"], function(Player, Bullet) {
 
       socket.on('beginCountdown', function(countdown) {
         countdownBegin = true;
+        inProgress = true;
       });
 
       socket.on('updatePlayers', function(playersUpdate) {
@@ -204,7 +242,8 @@ define(["player", "bullet"], function(Player, Bullet) {
         }
 
         ctx.fillText(message, width/2, height/2);
-        clearInterval(interval);
+        inProgress = false;
+        gameOver = true;
       });
 
       socket.on('disconnect', function() {
@@ -213,12 +252,6 @@ define(["player", "bullet"], function(Player, Bullet) {
       });
 
       lastTime = new Date().getTime();
-    }
-
-    clearScreen = function() {
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = '#888888';
-      ctx.fillRect(0, 0, width, height);
     }
 
     update = function () {
@@ -329,6 +362,7 @@ define(["player", "bullet"], function(Player, Bullet) {
     }
 
     draw = function() {
+      if(gameOver) return;
       clearScreen();
       drawClients();
       drawBullets();

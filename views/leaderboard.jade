@@ -7,6 +7,8 @@ block content
       tr
         td(align='center')
         td(align='center')
+          b Rating
+        td(align='center') 
           b User
         td(align='center') 
           b Wins
@@ -18,6 +20,7 @@ block content
       each player, i in players
         tr
           td(align='center')= i+1
+          td(align='center')= player.elo
           td(align='center')= player.username
           td(align='center')= player.wins
           td(align='center')= player.losses

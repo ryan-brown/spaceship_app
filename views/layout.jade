@@ -11,7 +11,7 @@ html
     a(href='/leaderboard') Leaderboard
     |  - 
     - if(username)
-      a(href='/account') My Account
+      a(href='/users/#{username}') My Account
       |  - 
       a(href='/logout') Logout
       p Welcome, #{username}

@@ -4,6 +4,7 @@ var express = require('express'),
     cookieParser = require('cookie-parser'),
     session = require('cookie-session'),
     bodyParser = require('body-parser'),
+    bcrypt = require('bcrypt'),
     mongoose = require('mongoose'),
     app = express();
 
@@ -32,9 +33,11 @@ mongoose.connect('mongodb://localhost/users');
 var UserSchema = new mongoose.Schema({
   username: String,
   password: String,
+  salt: String,
   email: String,
   wins: Number,
-  losses: Number
+  losses: Number,
+  elo: Number
 });
 
 var User = mongoose.model('User', UserSchema);
@@ -49,16 +52,22 @@ app.get('/', restrict, function(req, res) {
 });
 
 app.get('/login', function(req, res) {
-  res.render('login');
+  res.render('login', {loginname: 'username'});
 });
 
 app.post('/login', function(req, res) {
-  User.find({username: req.body.username, password: req.body.password}, function(err, docs) {
-    if (docs.length > 0) {
-      req.session.username = req.body.username;
-      res.redirect('/');
+  var username = req.body.username;
+  var regex = new RegExp(["^",username,"$"].join(""),"i");
+  User.findOne({username: regex}, function(err, user) {
+    if (err || !user) res.render('login', {message: 'User not found.', loginname: username});
+    else {
+      var hash = bcrypt.hashSync(req.body.password, user.salt);
+      if (hash == user.password) {
+        req.session.username = user.username;
+        res.redirect('/');
+      }
+      else res.render('login', {message: 'Login failed.', loginname: username});
     }
-    else res.render('login', {message: 'Login failed.'});
   });
 });
 
@@ -67,31 +76,42 @@ app.get('/create', function(req, res) {
 });
 
 app.post('/create', function(req, res) {
-  var body = req.body;
+  var username = req.body.username;
+  var password = req.body.password;
   var usernameRegex = /^[a-z0-9]+$/i;
   var passwordRegex = /^[a-z0-9._!@#$%^&*()]+$/i;
 
-  if (body.username.length < 3 || body.username.legnth > 16) 
+  if (username.length < 3 || username.legnth > 16) 
     res.render('create', {message: 'Username must be between 3 and 16 chacters'});
-  else if (body.password.length < 3 || body.password.length > 16)
+  else if (password.length < 3 || password.length > 16)
     res.render('create', {message: 'Password must be between 3 and 16 chacters'});
-  else if (!usernameRegex.test(body.username))
+  else if (!usernameRegex.test(username))
     res.render('create', {message: 'Username must be alphanumeric'});
-  else if (!passwordRegex.test(body.password))
+  else if (!passwordRegex.test(password))
     res.render('create', {message: 'Passwords only allow alphanumeric characters and these special characters: . _ ! @ # $ % ^ & * ( )'});
-  else User.find({username: body.username}, function(err, docs) {
-    if (docs.length > 0) res.render('create', {message: 'Username already exists.'});
-    else  new User({
-      username: body.username,
-      password: body.password,
-      email: body.email,
-      wins: 0,
-      losses: 0
-    }).save(function(err, docs) {
-      if (err) res.json(err);
-      res.redirect('login');
+  else {
+    var regex = new RegExp(["^",username,"$"].join(""),"i");
+    User.findOne({username: regex}, function(err, user) {
+      if (user) res.render('create', {message: 'Username already exists.'});
+      else {
+        var salt = bcrypt.genSaltSync(12);
+        var hash = bcrypt.hashSync(password, salt);
+
+        new User({
+          username: username,
+          password: hash,
+          salt: salt,
+          email: req.body.email,
+          wins: 0,
+          losses: 0,
+          elo: 1500
+        }).save(function(err, docs) {
+          if (err) res.json(err);
+          res.redirect('login');
+        });
+      }
     });
-  });
+  }
 });
 
 app.get('/logout', function(req, res) {
@@ -103,34 +123,29 @@ app.get('/play', restrict, function(req, res) {
   res.render('play');
 });
 
-app.get('/account', restrict, function(req, res) {
-  User.findOne({username: req.session.username}, function(err, user) {
+app.get('/users/:username', function(req, res, next) {
+  var regex = new RegExp(["^",req.params.username,"$"].join(""),"i");
+  User.findOne({username: regex}, function(err, user) {
+    if (err || !user) {
+      next();
+    }
+
     var data = {};
     data.username = user.username;
     data.email = user.email;
     data.wins = user.wins;
     data.losses = user.losses;
+    data.elo = user.elo;
 
-    res.render('account', {user: data});
+    res.render('users', {user: data});
   });
 });
 
-function rankscore(wins, losses) {
-  var totalGames = wins+losses;
-  var ratio = (totalGames == 0) ? 0 : wins/(totalGames);
-
-  return ratio*(1-Math.exp(-wins/8));
-}
-
 function compare(a,b) {
-  var aScore = rankscore(a.wins, a.losses);
-  var bScore = rankscore(b.wins, b.losses);
-
-  if (aScore < bScore)
+  if (a.elo < b.elo)
     return 1;
-  if (aScore > bScore)
+  if (a.elo > b.elo)
     return -1;
-  
   return a.username.localeCompare(b.username);
 }
 
@@ -140,6 +155,7 @@ app.get('/leaderboard', function(req, res) {
     for(var i = 0; i < docs.length; i++) {
       var datum = {} 
       datum.username = docs[i].username;
+      datum.elo = docs[i].elo;
       datum.wins = docs[i].wins;
       datum.losses = docs[i].losses;
 

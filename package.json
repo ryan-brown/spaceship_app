@@ -18,7 +18,8 @@
     "nodemon": "*",
     "socket.io": "*",
     "requirejs": "*",
-    "keygrip" : "*"
+    "keygrip" : "*",
+    "bcrypt" : "*"
   }
 }
 

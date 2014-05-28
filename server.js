@@ -20,9 +20,11 @@ mongoose.connect("mongodb://localhost/users");
 var UserSchema = new mongoose.Schema({
   username: String,
   password: String,
+  salt: String,
   email: String,
   wins: Number,
-  losses: Number
+  losses: Number,
+  elo: Number
 });
 
 var User = mongoose.model('User', UserSchema);
@@ -51,7 +53,7 @@ var getGamesData = function() {
 }
 
 var clientCallback = function(client) {
-  client.emit('connected', 0);
+  client.emit('connected');
   client.authenticated = false;
 
   var player;
@@ -65,8 +67,30 @@ var clientCallback = function(client) {
       client.username = data.username;
       client.authenticated = true;
       client.emit('games', getGamesData());
+      client.join('lobby');
     }
     else client.disconnect();
+  });
+
+  client.on('joinLobby', function(gameID) {
+    if(!client.authenticated) return;
+
+    for(var i = 0; i < games.length; i++) {
+      if (games[i].room == gameID) {
+        for(var j = 0; j < games[i].players.length; j++) {
+          if (client.username == games[i].players[j].username) {
+            games[i].players.splice(j, 1);
+          }
+        }
+      }
+    }
+
+    var rooms = socket.sockets.manager.roomClients[client.id];
+    for(var room in rooms) {
+      client.leave(room);
+    }
+    client.join('lobby');
+    socket.sockets.in('lobby').emit('games', getGamesData());
   });
 
   client.on('refreshGames', function() {
@@ -82,16 +106,20 @@ var clientCallback = function(client) {
     for (var i = 0; i < games.length; i++) {
       if (games[i].room == room) {
         foundGame = true;
-        client.join(room);
         player = games[i].addPlayer(client.username);
 
         if(player) {
-          client.emit('joined', player.playerNum);
+          var data = {};
+          data.playerNum = player.playerNum;
+          data.gameID = room;
+          client.leave('lobby');
+          client.join(room);
+          client.emit('joined', data);
+          socket.sockets.in('lobby').emit('games', getGamesData());
           break;
         }
         else {
           client.emit('roomFull', room);
-          client.leave(room);
           break;
         }
       }
@@ -112,7 +140,13 @@ var clientCallback = function(client) {
     games.push(newGame);
 
     client.join(roomName);
-    client.emit('joined', player.playerNum);
+    client.leave('lobby');
+    
+    var data = {};
+    data.playerNum = player.playerNum;
+    data.gameID = roomName;
+    client.emit('joined', data);
+    socket.sockets.in('lobby').emit('games', getGamesData());
   });
 
   client.on('up', function(e) {
@@ -216,7 +250,7 @@ var Game = function(room) {
   this.hypot = function(a, b) {
     return Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2));
   }
-  
+
   this.updateObjects = function(delta) {
     for (var i = 0; i < this.players.length; i++) {
       var player = this.players[i];
@@ -224,30 +258,41 @@ var Game = function(room) {
       player.update(delta)
   
       if (player.hp <= 0) {
-        this.loser = this.players[i].username;
+        this.loser = player.username;
         this.winner = this.players[(i+1)%2].username;
         
-        User.findOne({username: this.winner}, function(err, user) {
-          if (err) console.log('find player failed');
-          else {
-            user.wins += 1;
-            user.save(function(err) {
-              if (err) console.log('save failed');
-              else console.log('saved user data');
-            });
-          }
-        });
+        (function(winner, loser) {
+          User.findOne({username: winner}, function(err1, winUser) {
+          User.findOne({username: loser}, function(err2, loseUser) { 
 
-        User.findOne({username: this.loser}, function(err, user) {
-          if (err) console.log('find player failed');
-          else {
-            user.losses += 1;
-            user.save(function(err) {
-              if (err) console.log('save failed');
-              else console.log('saved user data');
-            });
-          }
-        });
+          var r1, r2, k1, k2, R1, R2, E1, E1, d1, d2;
+
+          r1 = winUser.elo;
+          games1 = winUser.wins+winUser.losses;
+          k1 = (games1 < 10) ? 50 : 30;
+
+          r2 = loseUser.elo;
+          games2 = loseUser.wins+loseUser.losses;
+          k2 = (games2 < 10) ? 50 : 30;
+
+          R1 = Math.pow(10, r1/400);
+          R2 = Math.pow(10, r2/400);
+
+          E1 = R1/(R1+R2);
+          E2 = R2/(R1+R2);
+
+          d1 = k1*(1-E1);
+          d2 = k2*(-E2);
+
+          winUser.wins += 1;
+          loseUser.losses += 1;
+
+          winUser.elo += Math.round(d1);
+          loseUser.elo += Math.round(d2);
+
+          winUser.save();
+          loseUser.save();
+        })})})(this.winner, this.loser);
 
         socket.sockets.in(this.room).emit('gameOver', player.playerNum);
 
